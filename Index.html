@@ -297,42 +297,159 @@ async function renderReports(){var now=new Date();var rpt=await callGS('getFinan
 async function loadReport(){var month=parseInt($sel('#reportMonth')?.value||0);var year=parseInt($sel('#reportYear')?.value||new Date().getFullYear());showLoading();var rpt=await callGS('getFinancialReport',month||null,year||null);hideLoading();if(rpt&&rpt.success){App.currentReport=rpt;navTo('reports');}}
 function shareReportWA(){var rpt=App.currentReport;if(!rpt)return;var msg='*School ERP Report*\n\nIncome: PKR '+rpt.totalIncome.toLocaleString()+'\nExpenses: PKR '+rpt.totalExpenses.toLocaleString()+'\nProfit: PKR '+rpt.profit.toLocaleString();var num=prompt('WhatsApp number:','');if(num)window.open('https://wa.me/'+num.replace(/[^0-9]/g,'')+'?text='+encodeURIComponent(msg),'_blank');}
 
-// ==================== EXAM REGISTRATION ====================
-async function renderExams(){App.students=(await callGS('getStudents'))||[];var registrations=(await callGS('getExamRegistrations'))||[];var examTypes=await callGS('getExamTypes')||[];var subjects=await callGS('getDefaultSubjects')||[];var h='<div class="d-flex justify-content-between mb-3"><h4>Exam Registration</h4><button class="btn btn-primary" onclick="showExamRegForm()">Register Student</button></div>';h+='<div class="card mb-3"><div class="card-header">Filters</div><div class="card-body"><div class="row g-2"><div class="col-md-3"><select class="form-select" id="examTypeFilter" onchange="filterExamTable()"><option value="">All Exam Types</option>'+examTypes.map(function(e){return '<option>'+e+'</option>';}).join('')+'</select></div><div class="col-md-3"><input class="form-control" id="examClassFilter" placeholder="Filter by Class" oninput="filterExamTable()"></div><div class="col-md-3"><button class="btn btn-success" onclick="printExamList()"><i class="bi bi-printer"></i> Print</button><button class="btn btn-info ms-1" onclick="shareExamListWA()"><i class="bi bi-whatsapp"></i> Share</button></div></div></div></div>';h+='<div class="card"><table class="table" id="examTable"><thead><tr><th>Reg ID</th><th>Student</th><th>Class</th><th>Exam</th><th>Year</th><th>Subjects</th><th>Status</th><th>Actions</th></tr></thead><tbody>';registrations.forEach(function(r){h+='<tr data-exam="'+r.ExamType+'" data-class="'+r.Class+'"><td>'+r.RegistrationID+'</td><td><strong>'+r.StudentName+'</strong><br><small>'+r.StudentID+'</small></td><td>'+r.Class+'</td><td>'+r.ExamType+'</td><td>'+r.ExamYear+'</td><td>'+r.Subjects+'</td><td><span class="badge bg-success">'+r.Status+'</span></td><td><button class="btn btn-sm btn-info me-1" onclick="editExamReg(\''+r.RegistrationID+'\')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-danger me-1" onclick="delExamReg(\''+r.RegistrationID+'\')"><i class="bi bi-trash"></i></button><button class="btn btn-sm btn-success" onclick="shareExamRegWA(\''+r.RegistrationID+'\')"><i class="bi bi-whatsapp"></i></button></td></tr>';});h+='</tbody></table></div>';return h;}
+// ==================== EXAM REGISTRATION (WITH CUSTOM SUBJECTS) ====================
+async function renderExams(){App.students=(await callGS('getStudents'))||[];var registrations=(await callGS('getExamRegistrations'))||[];var examTypes=await callGS('getExamTypes')||[];var h='<div class="d-flex justify-content-between mb-3"><h4><i class="bi bi-pencil-square me-2"></i>Exam Registration</h4><button class="btn btn-primary" onclick="showExamRegForm()"><i class="bi bi-plus-lg"></i> Register Student</button></div>';h+='<div class="card mb-3"><div class="card-header">Filters</div><div class="card-body"><div class="row g-2"><div class="col-md-3"><select class="form-select" id="examTypeFilter" onchange="filterExamTable()"><option value="">All Exam Types</option>'+examTypes.map(function(e){return '<option>'+e+'</option>';}).join('')+'</select></div><div class="col-md-3"><input class="form-control" id="examClassFilter" placeholder="Filter by Class" oninput="filterExamTable()"></div><div class="col-md-3"><button class="btn btn-success" onclick="printExamList()"><i class="bi bi-printer"></i> Print</button><button class="btn btn-info ms-1" onclick="shareExamListWA()"><i class="bi bi-whatsapp"></i> Share</button></div></div></div></div>';h+='<div class="card"><table class="table" id="examTable"><thead><tr><th>Reg ID</th><th>Student</th><th>Class</th><th>Exam</th><th>Year</th><th>Subjects</th><th>Status</th><th>Actions</th></tr></thead><tbody>';registrations.forEach(function(r){h+='<tr data-exam="'+r.ExamType+'" data-class="'+r.Class+'"><td>'+r.RegistrationID+'</td><td><strong>'+r.StudentName+'</strong><br><small>'+r.StudentID+'</small></td><td>'+r.Class+'</td><td>'+r.ExamType+'</td><td>'+r.ExamYear+'</td><td>'+r.Subjects+'</td><td><span class="badge bg-success">'+r.Status+'</span></td><td><button class="btn btn-sm btn-info me-1" onclick="editExamReg(\''+r.RegistrationID+'\')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-danger me-1" onclick="delExamReg(\''+r.RegistrationID+'\')"><i class="bi bi-trash"></i></button><button class="btn btn-sm btn-success" onclick="shareExamRegWA(\''+r.RegistrationID+'\')"><i class="bi bi-whatsapp"></i></button></td></tr>';});h+='</tbody></table></div>';return h;}
 function filterExamTable(){var et=$sel('#examTypeFilter')?.value||'';var ec=$sel('#examClassFilter')?.value.toLowerCase()||'';document.querySelectorAll('#examTable tbody tr').forEach(function(r){var m1=!et||r.dataset.exam===et;var m2=!ec||r.dataset.class.toLowerCase().includes(ec);r.style.display=m1&&m2?'':'none';});}
-function showExamRegForm(rid){var r=rid?null:null;var examTypes=['Annual Examination','Supplementary Examination','Mid-Term Examination','Term Examination'];var subjects=['English','Urdu','Mathematics','Science','Islamiyat','Social Studies','Computer Science','Physics','Chemistry','Biology','History','Geography'];var h='<div class="modal fade" id="examRegModal"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5>Exam Registration</h5></div><div class="modal-body"><form id="examRegForm" class="row g-3"><div class="col-md-6"><label>Student *</label><select class="form-select" name="studentId">'+App.students.map(function(s){return '<option value="'+s.StudentID+'">'+s.FullName+' ('+s.StudentID+') - '+s.Class+'</option>';}).join('')+'</select></div><div class="col-md-3"><label>Exam Type</label><select class="form-select" name="examType">'+examTypes.map(function(e){return '<option>'+e+'</option>';}).join('')+'</select></div><div class="col-md-3"><label>Exam Year</label><input class="form-control" name="examYear" value="'+new Date().getFullYear()+'"></div><div class="col-12"><label>Subjects</label><div class="row g-2" id="subjectsCheckboxes">'+subjects.map(function(s){return '<div class="col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="subjects" value="'+s+'"><label class="form-check-label">'+s+'</label></div></div>';}).join('')+'</div></div><div class="col-md-6"><label>Fee Status</label><select class="form-select" name="feeStatus"><option>Cleared</option><option>Pending</option><option>Special Permission</option></select></div><div class="col-md-6"><label>Permission By (if applicable)</label><input class="form-control" name="specialPermission" placeholder="Principal/Admin name"></div></form></div><div class="modal-footer"><button class="btn btn-primary" onclick="saveExamReg()">Register</button></div></div></div></div>';$sel('#modalContainer').innerHTML=h;new bootstrap.Modal($sel('#examRegModal')).show();}
-async function saveExamReg(){var f=$sel('#examRegForm');var fd=new FormData(f);var d={};fd.forEach(function(v,k){if(k==='subjects'){if(!d.subjects)d.subjects=[];d.subjects.push(v);}else d[k]=v;});showLoading();var res=await callGS('registerForExam',d.studentId,d.examType,d.examYear,d.subjects,d.feeStatus,d.specialPermission);hideLoading();if(res&&res.success){showToast('Registered!','success');bootstrap.Modal.getInstance($sel('#examRegModal')).hide();navTo('exams');}}
+
+// ==================== EXAM REG FORM WITH CUSTOM SUBJECTS ====================
+function showExamRegForm(rid){
+  var examTypes=['Annual Examination','Supplementary Examination','Mid-Term Examination','Term Examination'];
+  var defaultSubjects=['English','Urdu','Mathematics','Science','Islamiyat','Social Studies','Computer Science','Physics','Chemistry','Biology','History','Geography'];
+  
+  var h='<div class="modal fade" id="examRegModal"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5><i class="bi bi-pencil-square me-2"></i>Exam Registration</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="examRegForm" class="row g-3">';
+  
+  h+='<div class="col-md-6"><label class="form-label">Student <span class="text-danger">*</span></label><select class="form-select" name="studentId" required>';
+  h+='<option value="">-- Select Student --</option>';
+  App.students.forEach(function(s){
+    h+='<option value="'+s.StudentID+'">'+s.FullName+' ('+s.StudentID+') - Class: '+s.Class+'</option>';
+  });
+  h+='</select></div>';
+  
+  h+='<div class="col-md-3"><label class="form-label">Exam Type <span class="text-danger">*</span></label><select class="form-select" name="examType" required>';
+  examTypes.forEach(function(e){ h+='<option value="'+e+'">'+e+'</option>'; });
+  h+='</select></div>';
+  
+  h+='<div class="col-md-3"><label class="form-label">Exam Year <span class="text-danger">*</span></label><input class="form-control" name="examYear" value="'+new Date().getFullYear()+'" required></div>';
+  
+  // Subjects Section with Custom Add Option
+  h+='<div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2"><i class="bi bi-book me-2"></i>Select Subjects</h6>';
+  h+='<div class="row g-2" id="examSubjectsContainer">';
+  defaultSubjects.forEach(function(s){
+    h+='<div class="col-md-3 col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="subjects" value="'+s+'" id="sub_'+s.replace(/\s/g,'_')+'"><label class="form-check-label" for="sub_'+s.replace(/\s/g,'_')+'">'+s+'</label></div></div>';
+  });
+  h+='</div>';
+  
+  // Custom Subject Input
+  h+='<div class="col-12 mt-2"><div class="input-group">';
+  h+='<input type="text" class="form-control" id="customSubjectInput" placeholder="Enter custom subject name...">';
+  h+='<button type="button" class="btn btn-outline-primary" onclick="addCustomExamSubject()"><i class="bi bi-plus-lg me-1"></i>Add Custom Subject</button>';
+  h+='</div><small class="text-muted">Type a subject name and click Add to include it in the list</small></div>';
+  h+='</div>';
+  
+  // Fee Status & Permission
+  h+='<div class="col-12 mt-3"><h6 class="text-primary border-bottom pb-2"><i class="bi bi-cash me-2"></i>Fee & Permission</h6></div>';
+  h+='<div class="col-md-6"><label class="form-label">Fee Status</label><select class="form-select" name="feeStatus"><option value="Cleared">Cleared</option><option value="Pending">Pending</option><option value="Special Permission">Special Permission</option></select></div>';
+  h+='<div class="col-md-6"><label class="form-label">Permission By (Principal/Admin)</label><input class="form-control" name="specialPermission" placeholder="Enter name if special permission granted"></div>';
+  
+  h+='</form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-lg" onclick="saveExamReg()"><i class="bi bi-check-lg me-2"></i>Register for Exam</button></div></div></div></div>';
+  
+  $sel('#modalContainer').innerHTML = h;
+  new bootstrap.Modal($sel('#examRegModal')).show();
+}
+
+function addCustomExamSubject() {
+  var input = $sel('#customSubjectInput');
+  if (!input) return;
+  var subjectName = input.value.trim();
+  
+  if (!subjectName) {
+    showToast('Please enter a subject name', 'warning');
+    return;
+  }
+  
+  var existingCheckboxes = document.querySelectorAll('#examSubjectsContainer input[type="checkbox"]');
+  var exists = false;
+  existingCheckboxes.forEach(function(cb) {
+    if (cb.value.toLowerCase() === subjectName.toLowerCase()) {
+      exists = true;
+    }
+  });
+  
+  if (exists) {
+    showToast('This subject is already in the list!', 'warning');
+    input.value = '';
+    return;
+  }
+  
+  var container = $sel('#examSubjectsContainer');
+  var div = document.createElement('div');
+  div.className = 'col-md-3 col-6';
+  var id = 'sub_custom_' + Date.now();
+  div.innerHTML = '<div class="form-check">' +
+    '<input class="form-check-input" type="checkbox" name="subjects" value="' + subjectName + '" id="' + id + '" checked>' +
+    '<label class="form-check-label" for="' + id + '">' + subjectName + ' <span class="badge bg-info">Custom</span></label>' +
+    '</div>';
+  container.appendChild(div);
+  
+  input.value = '';
+  showToast('Subject "' + subjectName + '" added!', 'success');
+}
+
+async function saveExamReg() {
+  var f = $sel('#examRegForm');
+  if (!f) return;
+  
+  var fd = new FormData(f);
+  var d = { subjects: [] };
+  
+  fd.forEach(function(v, k) {
+    if (k === 'subjects') {
+      d.subjects.push(v);
+    } else {
+      d[k] = v;
+    }
+  });
+  
+  if (!d.studentId) { showToast('Please select a student', 'warning'); return; }
+  if (!d.examType) { showToast('Please select exam type', 'warning'); return; }
+  if (!d.examYear) { showToast('Please enter exam year', 'warning'); return; }
+  if (d.subjects.length === 0) { showToast('Please select at least one subject', 'warning'); return; }
+  
+  showLoading();
+  var res = await callGS('registerForExam', d.studentId, d.examType, d.examYear, d.subjects, d.feeStatus, d.specialPermission);
+  hideLoading();
+  
+  if (res && res.success) {
+    showToast('Exam registration successful! ID: ' + res.registrationId, 'success');
+    bootstrap.Modal.getInstance($sel('#examRegModal')).hide();
+    navTo('exams');
+  } else {
+    showToast(res?.message || 'Registration failed', 'danger');
+  }
+}
+
+function editExamReg(rid){showToast('Edit feature: '+rid,'info');}
 async function delExamReg(rid){if(!confirm('Delete?'))return;showLoading();await callGS('deleteExamRegistration',rid);hideLoading();showToast('Deleted!','warning');navTo('exams');}
 function shareExamRegWA(rid){var num=prompt('WhatsApp number:','');if(num)window.open('https://wa.me/'+num.replace(/[^0-9]/g,'')+'?text='+encodeURIComponent('Exam Registration: '+rid),'_blank');}
 function printExamList(){window.print();}
 function shareExamListWA(){var rows=document.querySelectorAll('#examTable tbody tr:not([style*="display: none"])');var msg='*Exam Registration List*\n\n';rows.forEach(function(r){msg+=r.cells[1].textContent+' | '+r.cells[3].textContent+'\n';});var num=prompt('WhatsApp number:','');if(num)window.open('https://wa.me/'+num.replace(/[^0-9]/g,'')+'?text='+encodeURIComponent(msg),'_blank');}
 
 // ==================== RESULT CARDS ====================
-async function renderResults(){var results=(await callGS('getResultCards'))||[];App.students=(await callGS('getStudents'))||[];var h='<div class="d-flex justify-content-between mb-3"><h4>Result Cards</h4><button class="btn btn-primary" onclick="showResultForm()">Create Result Card</button></div>';h+='<div class="card mb-3"><div class="card-header">Filters</div><div class="card-body"><div class="row g-2"><div class="col-md-3"><input class="form-control" id="resClassFilter" placeholder="Class" oninput="filterResTable()"></div><div class="col-md-3"><input class="form-control" id="resStudentFilter" placeholder="Student ID/Name" oninput="filterResTable()"></div></div></div></div>';h+='<div class="card"><table class="table" id="resTable"><thead><tr><th>Result ID</th><th>Student</th><th>Class</th><th>Exam</th><th>Grade</th><th>%</th><th>Actions</th></tr></thead><tbody>';results.forEach(function(r){h+='<tr data-class="'+r.Class+'" data-student="'+r.StudentName+' '+r.StudentID+'"><td>'+r.ResultID+'</td><td><strong>'+r.StudentName+'</strong></td><td>'+r.Class+'</td><td>'+r.ExamType+'</td><td>'+r.Grade+'</td><td>'+r.Percentage+'%</td><td><button class="btn btn-sm btn-info me-1" onclick="editResultCard(\''+r.ResultID+'\')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-danger me-1" onclick="delResultCard(\''+r.ResultID+'\')"><i class="bi bi-trash"></i></button><button class="btn btn-sm btn-success" onclick="shareResultWA(\''+r.ResultID+'\')"><i class="bi bi-whatsapp"></i></button></td></tr>';});h+='</tbody></table></div>';return h;}
+async function renderResults(){var results=(await callGS('getResultCards'))||[];App.students=(await callGS('getStudents'))||[];var h='<div class="d-flex justify-content-between mb-3"><h4><i class="bi bi-award me-2"></i>Result Cards</h4><button class="btn btn-primary" onclick="showResultForm()"><i class="bi bi-plus-lg"></i> Create Result Card</button></div>';h+='<div class="card mb-3"><div class="card-header">Filters</div><div class="card-body"><div class="row g-2"><div class="col-md-3"><input class="form-control" id="resClassFilter" placeholder="Class" oninput="filterResTable()"></div><div class="col-md-3"><input class="form-control" id="resStudentFilter" placeholder="Student ID/Name" oninput="filterResTable()"></div></div></div></div>';h+='<div class="card"><table class="table" id="resTable"><thead><tr><th>Result ID</th><th>Student</th><th>Class</th><th>Exam</th><th>Grade</th><th>%</th><th>Actions</th></tr></thead><tbody>';results.forEach(function(r){h+='<tr data-class="'+r.Class+'" data-student="'+r.StudentName+' '+r.StudentID+'"><td>'+r.ResultID+'</td><td><strong>'+r.StudentName+'</strong></td><td>'+r.Class+'</td><td>'+r.ExamType+'</td><td>'+r.Grade+'</td><td>'+r.Percentage+'%</td><td><button class="btn btn-sm btn-info me-1" onclick="editResultCard(\''+r.ResultID+'\')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-danger me-1" onclick="delResultCard(\''+r.ResultID+'\')"><i class="bi bi-trash"></i></button><button class="btn btn-sm btn-success" onclick="shareResultWA(\''+r.ResultID+'\')"><i class="bi bi-whatsapp"></i></button></td></tr>';});h+='</tbody></table></div>';return h;}
 function filterResTable(){var cls=$sel('#resClassFilter')?.value.toLowerCase()||'';var stu=$sel('#resStudentFilter')?.value.toLowerCase()||'';document.querySelectorAll('#resTable tbody tr').forEach(function(r){var m1=!cls||r.dataset.class.toLowerCase().includes(cls);var m2=!stu||r.dataset.student.toLowerCase().includes(stu);r.style.display=m1&&m2?'':'none';});}
 function showResultForm(rid){
   var subjects=['English','Urdu','Mathematics','Science','Islamiyat','Social Studies','Computer Science','Physics','Chemistry','Biology','History','Geography'];
-  var h='<div class="modal fade" id="resModal"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-success text-white"><h5>Result Card</h5></div><div class="modal-body"><form id="resForm" class="row g-3">';
-  h+='<div class="col-md-4"><label>Student *</label><select class="form-select" name="studentId" onchange="autoFillResSubjects()">'+App.students.map(function(s){return '<option value="'+s.StudentID+'">'+s.FullName+' ('+s.StudentID+')</option>';}).join('')+'</select></div>';
+  var h='<div class="modal fade" id="resModal"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-success text-white"><h5><i class="bi bi-award me-2"></i>Result Card</h5></div><div class="modal-body"><form id="resForm" class="row g-3">';
+  h+='<div class="col-md-4"><label>Student *</label><select class="form-select" name="studentId">'+App.students.map(function(s){return '<option value="'+s.StudentID+'">'+s.FullName+' ('+s.StudentID+')</option>';}).join('')+'</select></div>';
   h+='<div class="col-md-3"><label>Exam Type</label><select class="form-select" name="examType"><option>Annual Examination</option><option>Mid-Term</option><option>Term Examination</option></select></div>';
   h+='<div class="col-md-3"><label>Exam Year</label><input class="form-control" name="examYear" value="'+new Date().getFullYear()+'"></div>';
   h+='<div class="col-md-2"><label>Total Marks</label><input type="number" class="form-control" name="totalMarks" value="500"></div>';
-  h+='<div class="col-12"><h6 class="border-bottom pb-2 mt-3">Subject Marks</h6><div id="subjectMarksContainer"><div class="row g-2" id="subjectMarksRow">';
+  h+='<div class="col-12"><h6 class="border-bottom pb-2 mt-3">Subject Marks</h6><div class="row g-2" id="subjectMarksRow">';
   subjects.forEach(function(s){h+='<div class="col-md-4"><label>'+s+'</label><div class="input-group"><input type="text" class="form-control subject-name" value="'+s+'" readonly><input type="number" class="form-control subject-marks" placeholder="Marks" max="100" onchange="calcPercentage()"></div></div>';});
   h+='</div><button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addCustomSubject()"><i class="bi bi-plus"></i> Add Custom Subject</button></div>';
   h+='<div class="col-md-4"><label>Percentage</label><input class="form-control" id="resPercentage" readonly></div><div class="col-md-4"><label>Grade</label><input class="form-control" id="resGrade" readonly></div>';
   h+='<div class="col-md-4"><label>Remarks</label><input class="form-control" name="remarks"></div></form></div><div class="modal-footer"><button class="btn btn-success" onclick="saveResultCard()">Save Result</button></div></div></div></div>';
   $sel('#modalContainer').innerHTML=h;new bootstrap.Modal($sel('#resModal')).show();
 }
-function autoFillResSubjects(){}
 function addCustomSubject(){var row=$sel('#subjectMarksRow');var div=document.createElement('div');div.className='col-md-4';div.innerHTML='<label>Custom Subject</label><div class="input-group"><input type="text" class="form-control subject-name" placeholder="Subject name"><input type="number" class="form-control subject-marks" placeholder="Marks" max="100" onchange="calcPercentage()"><button class="btn btn-outline-danger" onclick="this.closest(\'.col-md-4\').remove();calcPercentage();"><i class="bi bi-x"></i></button></div>';row.appendChild(div);}
 function calcPercentage(){var names=document.querySelectorAll('.subject-name');var marks=document.querySelectorAll('.subject-marks');var total=0,obt=0;marks.forEach(function(m,i){var v=parseFloat(m.value)||0;if(v>0){obt+=v;total+=100;}});if(total>0){var pct=((obt/total)*100).toFixed(1);if($sel('#resPercentage'))$sel('#resPercentage').value=pct+'%';var grade='F';if(pct>=90)grade='A+';else if(pct>=80)grade='A';else if(pct>=70)grade='B';else if(pct>=60)grade='C';else if(pct>=50)grade='D';if($sel('#resGrade'))$sel('#resGrade').value=grade;}}
 async function saveResultCard(){var names=document.querySelectorAll('.subject-name');var marks=document.querySelectorAll('.subject-marks');var subjects=[],marksObj={};names.forEach(function(n,i){if(n.value&&marks[i].value){subjects.push(n.value);marksObj[n.value]=parseFloat(marks[i].value)||0;}});var f=$sel('#resForm');var fd=new FormData(f);var d={};fd.forEach(function(v,k){d[k]=v;});d.subjects=subjects;d.marks=marksObj;d.percentage=parseFloat(($sel('#resPercentage')?.value||'0').replace('%',''));d.grade=$sel('#resGrade')?.value||'';showLoading();var res=await callGS('saveResultCard',d);hideLoading();if(res&&res.success){showToast('Result saved!','success');bootstrap.Modal.getInstance($sel('#resModal')).hide();navTo('results');}}
+function editResultCard(rid){showToast('Edit: '+rid,'info');}
 async function delResultCard(rid){if(!confirm('Delete?'))return;showLoading();await callGS('deleteResultCard',rid);hideLoading();showToast('Deleted!','warning');navTo('results');}
 function shareResultWA(rid){var num=prompt('WhatsApp number:','');if(num)window.open('https://wa.me/'+num.replace(/[^0-9]/g,'')+'?text='+encodeURIComponent('Result Card: '+rid),'_blank');}
 
 // ==================== TEST RESULTS ====================
-async function renderTests(){var tests=(await callGS('getTestResults'))||[];App.students=(await callGS('getStudents'))||[];var testTypes=await callGS('getTestTypes')||[];var subjects=await callGS('getDefaultSubjects')||[];var h='<div class="d-flex justify-content-between mb-3"><h4>Test Results</h4><button class="btn btn-primary" onclick="showTestForm()">Add Test Result</button></div>';h+='<div class="card mb-3"><div class="card-header">Filters</div><div class="card-body"><div class="row g-2"><div class="col-md-2"><input class="form-control" id="testStudentFilter" placeholder="Student ID/Name" oninput="filterTestTable()"></div><div class="col-md-2"><input class="form-control" id="testClassFilter" placeholder="Class" oninput="filterTestTable()"></div><div class="col-md-2"><select class="form-select" id="testTypeFilter" onchange="filterTestTable()"><option value="">All Types</option>'+testTypes.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select></div><div class="col-md-2"><select class="form-select" id="testSubjectFilter" onchange="filterTestTable()"><option value="">All Subjects</option>'+subjects.map(function(s){return '<option>'+s+'</option>';}).join('')+'</select></div></div></div></div>';h+='<div class="card"><table class="table" id="testTable"><thead><tr><th>Test ID</th><th>Student</th><th>Class</th><th>Test Type</th><th>Subject</th><th>Marks</th><th>%</th><th>Actions</th></tr></thead><tbody>';tests.forEach(function(t){h+='<tr data-student="'+t.StudentName+' '+t.StudentID+'" data-class="'+t.Class+'" data-type="'+t.TestType+'" data-subject="'+t.Subject+'"><td>'+t.TestID+'</td><td><strong>'+t.StudentName+'</strong></td><td>'+t.Class+'</td><td>'+t.TestType+'</td><td>'+t.Subject+'</td><td>'+t.Marks+'/'+t.TotalMarks+'</td><td>'+t.Percentage+'%</td><td><button class="btn btn-sm btn-danger" onclick="delTest(\''+t.TestID+'\')"><i class="bi bi-trash"></i></button></td></tr>';});h+='</tbody></table></div>';return h;}
+async function renderTests(){var tests=(await callGS('getTestResults'))||[];App.students=(await callGS('getStudents'))||[];var testTypes=await callGS('getTestTypes')||[];var subjects=await callGS('getDefaultSubjects')||[];var h='<div class="d-flex justify-content-between mb-3"><h4><i class="bi bi-clipboard-check me-2"></i>Test Results</h4><button class="btn btn-primary" onclick="showTestForm()"><i class="bi bi-plus-lg"></i> Add Test Result</button></div>';h+='<div class="card mb-3"><div class="card-header">Filters</div><div class="card-body"><div class="row g-2"><div class="col-md-2"><input class="form-control" id="testStudentFilter" placeholder="Student ID/Name" oninput="filterTestTable()"></div><div class="col-md-2"><input class="form-control" id="testClassFilter" placeholder="Class" oninput="filterTestTable()"></div><div class="col-md-2"><select class="form-select" id="testTypeFilter" onchange="filterTestTable()"><option value="">All Types</option>'+testTypes.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select></div><div class="col-md-2"><select class="form-select" id="testSubjectFilter" onchange="filterTestTable()"><option value="">All Subjects</option>'+subjects.map(function(s){return '<option>'+s+'</option>';}).join('')+'</select></div></div></div></div>';h+='<div class="card"><table class="table" id="testTable"><thead><tr><th>Test ID</th><th>Student</th><th>Class</th><th>Test Type</th><th>Subject</th><th>Marks</th><th>%</th><th>Actions</th></tr></thead><tbody>';tests.forEach(function(t){h+='<tr data-student="'+t.StudentName+' '+t.StudentID+'" data-class="'+t.Class+'" data-type="'+t.TestType+'" data-subject="'+t.Subject+'"><td>'+t.TestID+'</td><td><strong>'+t.StudentName+'</strong></td><td>'+t.Class+'</td><td>'+t.TestType+'</td><td>'+t.Subject+'</td><td>'+t.Marks+'/'+t.TotalMarks+'</td><td>'+t.Percentage+'%</td><td><button class="btn btn-sm btn-danger" onclick="delTest(\''+t.TestID+'\')"><i class="bi bi-trash"></i></button></td></tr>';});h+='</tbody></table></div>';return h;}
 function filterTestTable(){var stu=$sel('#testStudentFilter')?.value.toLowerCase()||'';var cls=$sel('#testClassFilter')?.value.toLowerCase()||'';var typ=$sel('#testTypeFilter')?.value||'';var sub=$sel('#testSubjectFilter')?.value||'';document.querySelectorAll('#testTable tbody tr').forEach(function(r){var m1=!stu||r.dataset.student.toLowerCase().includes(stu);var m2=!cls||r.dataset.class.toLowerCase().includes(cls);var m3=!typ||r.dataset.type===typ;var m4=!sub||r.dataset.subject===sub;r.style.display=m1&&m2&&m3&&m4?'':'none';});}
 function showTestForm(){var testTypes=['Weekly Test','Monthly Test','Quarterly Test','Half-Yearly Test','Pre-Board Test'];var subjects=['English','Urdu','Mathematics','Science','Islamiyat','Social Studies','Computer Science','Physics','Chemistry','Biology'];var h='<div class="modal fade" id="testModal"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-warning text-dark"><h5>Add Test Result</h5></div><div class="modal-body"><form id="testForm" class="row g-3"><div class="col-md-6"><label>Student *</label><select class="form-select" name="studentId">'+App.students.map(function(s){return '<option value="'+s.StudentID+'">'+s.FullName+' ('+s.StudentID+')</option>';}).join('')+'</select></div><div class="col-md-6"><label>Test Type</label><select class="form-select" name="testType">'+testTypes.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select></div><div class="col-md-6"><label>Subject</label><input class="form-control" name="subject" list="subjectList" placeholder="Type or select"><datalist id="subjectList">'+subjects.map(function(s){return '<option value="'+s+'">';}).join('')+'</datalist></div><div class="col-md-3"><label>Marks</label><input type="number" class="form-control" name="marks" required></div><div class="col-md-3"><label>Total Marks</label><input type="number" class="form-control" name="totalMarks" value="100"></div><div class="col-md-6"><label>Date</label><input type="date" class="form-control" name="date" value="'+new Date().toISOString().split('T')[0]+'"></div><div class="col-md-6"><label>Remarks</label><input class="form-control" name="remarks"></div></form></div><div class="modal-footer"><button class="btn btn-warning" onclick="saveTestResult()">Save</button></div></div></div></div>';$sel('#modalContainer').innerHTML=h;new bootstrap.Modal($sel('#testModal')).show();}
 async function saveTestResult(){var f=$sel('#testForm');var fd=new FormData(f);var d={};fd.forEach(function(v,k){d[k]=v;});d.percentage=d.totalMarks>0?((d.marks/d.totalMarks)*100).toFixed(1):0;showLoading();var res=await callGS('saveTestResult',d);hideLoading();if(res&&res.success){showToast('Test saved!','success');bootstrap.Modal.getInstance($sel('#testModal')).hide();navTo('tests');}}
